@@ -290,6 +290,53 @@ is_cloudflare_ip() {
     return 1
 }
 
+# validate_port порт [опционально: проверять_занятость]
+# Возврат: 0=OK, 1=FAIL
+validate_port() {
+    local port="${1}"
+    local check_occupied="${2:-false}"
+    
+    # Проверка: пустой порт
+    [[ -z "$port" ]] && { error "Порт не указан"; return 1; }
+    
+    # Проверка: является ли числом
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        error "Порт '$port' не является числом"
+        return 1
+    fi
+    
+    # Проверка: диапазон 1-65535
+    if [[ "$port" -lt 1 ]] || [[ "$port" -gt 65535 ]]; then
+        error "Порт '$port' вне допустимого диапазона (1-65535)"
+        return 1
+    fi
+    
+    # Проверка: системные порты (0-1023) требуют прав root
+    if [[ "$port" -lt 1024 ]] && [[ "$(id -u)" -ne 0 ]]; then
+        warn "Порт $port < 1024 требует прав root. Запустите скрипт от root/sudo."
+        # Не возвращаем ошибку, только предупреждение
+    fi
+    
+    # Проверка: занят ли порт (если запрошено)
+    if [[ "$check_occupied" == "true" ]]; then
+        if command -v ss &>/dev/null; then
+            if ss -tuln | grep -q ":$port "; then
+                error "Порт $port уже занят другим процессом"
+                return 1
+            fi
+        elif command -v netstat &>/dev/null; then
+            if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+                error "Порт $port уже занят другим процессом"
+                return 1
+            fi
+        else
+            warn "Не удалось проверить занятость порта $port (нет ss или netstat)"
+        fi
+    fi
+    
+    return 0
+}
+
 # validate_domain "vpn.example.com" [required|optional] [allow_cf_proxy]
 # Возврат: 0=OK, 1=FAIL (обязательный), 2=WARN (необязательный)
 validate_domain() {
