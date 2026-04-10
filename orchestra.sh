@@ -213,16 +213,81 @@ resolve_domain() {
 # ВАЛИДАЦИЯ ДОМЕНА
 # =============================================================================
 
-# Проверяет TTL для детекта Cloudflare Proxy (TTL=300 → CF proxy включён)
+# Проверяет Cloudflare Proxy: TTL=300 И IP принадлежит диапазонам Cloudflare
 check_cf_proxy() {
     local domain="${1}"
     local ttl
+    local ip
 
     if command -v dig &>/dev/null; then
         ttl=$(dig +nocmd A "${domain}" @8.8.8.8 +noall +answer 2>/dev/null | awk '{print $2}' | head -1)
-        [[ "$ttl" == "300" ]] && return 0   # CF proxy детектирован
+        [[ "$ttl" != "300" ]] && return 1   # TTL не 300 — proxy выключен
+        # TTL=300, проверяем принадлежность IP Cloudflare
+        ip=$(dig +short A "${domain}" @8.8.8.8 2>/dev/null | head -1)
+        if [[ -n "$ip" ]] && is_cloudflare_ip "$ip"; then
+            return 0   # CF proxy детектирован
+        fi
+        # TTL=300, но IP не Cloudflare — возможно Auto-TTL, прокси выключен
+        return 1
     fi
     return 1  # CF proxy не обнаружен (или не удалось проверить)
+}
+
+# Проверяет, принадлежит ли IP адрес диапазонам Cloudflare
+is_cloudflare_ip() {
+    local ip="${1}"
+    # Основные диапазоны IPv4 Cloudflare (можно расширить)
+    local cf_ranges=(
+        "103.21.244.0/22"
+        "103.22.200.0/22"
+        "103.31.4.0/22"
+        "104.16.0.0/13"
+        "104.24.0.0/14"
+        "108.162.192.0/18"
+        "131.0.72.0/22"
+        "141.101.64.0/18"
+        "162.158.0.0/15"
+        "172.64.0.0/13"
+        "173.245.48.0/20"
+        "188.114.96.0/20"
+        "190.93.240.0/20"
+        "197.234.240.0/22"
+        "198.41.128.0/17"
+    )
+    
+    # Функция для преобразования IP в целое число
+    ip_to_int() {
+        local ip="$1"
+        local a b c d
+        IFS=. read -r a b c d <<< "$ip"
+        echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
+    }
+    
+    # Функция проверки вхождения IP в CIDR
+    ip_in_cidr() {
+        local ip="$1"
+        local cidr="$2"
+        local network mask bits
+        # Разделяем CIDR на сеть и маску
+        network="${cidr%/*}"
+        bits="${cidr#*/}"
+        mask=$((0xffffffff << (32 - bits) & 0xffffffff))
+        
+        local ip_int network_int
+        ip_int=$(ip_to_int "$ip")
+        network_int=$(ip_to_int "$network")
+        
+        # Проверяем, что IP & mask == network & mask
+        [[ $((ip_int & mask)) -eq $((network_int & mask)) ]]
+    }
+    
+    # Проверяем каждый диапазон
+    for range in "${cf_ranges[@]}"; do
+        if ip_in_cidr "$ip" "$range"; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # validate_domain "vpn.example.com" [required|optional] [allow_cf_proxy]
@@ -257,22 +322,28 @@ validate_domain() {
         return 2
     fi
 
-    # Детект Cloudflare Proxy
-    if check_cf_proxy "${domain}"; then
-        if [[ "$allow_cf_proxy" == "true" ]]; then
-            info "Домен ${domain} → ${domain_ip} (через Cloudflare Proxy — разрешено ✓)"
-        else
-            error "Cloudflare Proxy включён для ${domain} (TTL=300)"
-            error "Reality требует прямое TLS-соединение — переключи на DNS-only (серое облако)"
-            [[ "$required" == "required" ]] && return 1 || return 2
-        fi
-    fi
-
     # Сравниваем IP
     if [[ "$domain_ip" == "$server_ip" ]]; then
+        # Домен указывает прямо на сервер — Cloudflare Proxy выключен
+        # (даже если TTL=300, это может быть Auto-TTL Cloudflare)
         info "Домен ${domain} → ${domain_ip} ✓"
         return 0
     else
+        # IP не совпадает — возможен Cloudflare Proxy или ошибка DNS
+        # Детект Cloudflare Proxy
+        if check_cf_proxy "${domain}"; then
+            if [[ "$allow_cf_proxy" == "true" ]]; then
+                info "Домен ${domain} → ${domain_ip} (через Cloudflare Proxy — разрешено ✓)"
+                return 0
+            else
+                error "Cloudflare Proxy включён для ${domain} (TTL=300 + Cloudflare IP)"
+                error "Reality требует прямое TLS-соединение — переключи на DNS-only (серое облако)"
+                [[ "$required" == "required" ]] && return 1 || return 2
+            fi
+        fi
+
+        # Если дошли сюда, значит IP не совпадает и прокси не обнаружен
+        # (либо check_cf_proxy вернул false)
         error "A-запись ${BOLD}${domain}${N} ведёт на ${domain_ip}"
         error "IP этого сервера: ${server_ip}"
         echo ""
