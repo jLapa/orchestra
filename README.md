@@ -97,6 +97,32 @@ sudo apt-get update
 sudo apt-get install -y curl wget git sshpass jq dnsutils
 ```
 
+## ⚡ Установка одной командой
+
+Для быстрой установки Orchestra выполните:
+
+```bash
+# Автоматическая установка (требует sudo для системной установки)
+curl -4fsSL https://raw.githubusercontent.com/jLapa/orchestra/master/install.sh | sudo bash
+
+# Или без sudo (установка в домашнюю директорию)
+curl -4fsSL https://raw.githubusercontent.com/jLapa/orchestra/master/install.sh | bash
+```
+
+Скрипт установки:
+1. Проверит зависимости и установит недостающие
+2. Скачает последнюю версию Orchestra с GitHub
+3. Установит в `/opt/orchestra` (при root) или `~/.orchestra` (без root)
+4. Настроит права доступа
+5. Создаст символическую ссылку для глобального вызова (опционально)
+
+После установки перейдите в директорию и запустите Orchestra:
+
+```bash
+cd /opt/orchestra  # или ~/.orchestra
+./orchestra.sh
+```
+
 ## 🚀 Быстрый старт
 
 ### Предварительные требования

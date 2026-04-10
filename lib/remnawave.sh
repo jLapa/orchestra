@@ -240,6 +240,8 @@ remnawave_install_panel() {
     run_step "rw_panel" "wait_healthy"        "_rw_panel_wait_healthy" "$panel_port"
     run_step "rw_panel" "create_admin"        "_rw_panel_create_admin" "$panel_port" "$admin_user" "$admin_pass"
 
+    mark_module_done "remnawave-panel" "${server_ip}"
+    
     info "Remnawave Panel установлена"
     echo ""
     remnawave_show_access
@@ -547,6 +549,8 @@ remnawave_install_node() {
     run_step "rw_node" "wait_healthy"    "_rw_node_wait_healthy" "$node_port"
     run_step "rw_node" "firewall"        "_rw_node_open_firewall" "$node_port" "$xray_port"
 
+    mark_module_done "remnawave-node" "${server_ip}"
+    
     info "Remnawave Node установлена"
     echo ""
     echo -e "  ${G}✓${N} Нода запущена на порту ${node_port} (GRPC)"
@@ -786,7 +790,8 @@ remnawave_update_node() {
 remnawave_show_access() {
     section "Доступ к Remnawave Panel"
 
-    if [[ ! -f "${RW_ENV_FILE}" ]]; then
+    # Проверяем наличие docker-compose.yml или .env
+    if [[ ! -f "${RW_COMPOSE_PANEL}" ]] && [[ ! -f "${RW_ENV_FILE}" ]]; then
         warn "Панель не установлена"
         return 0
     fi

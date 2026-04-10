@@ -709,9 +709,14 @@ check_resume_prompt() {
 
     # Считаем выполненные / упавшие / ожидающие шаги
     local done_steps failed_steps pending_steps
-    done_steps=$(grep -c '^STEP_.*="done"' "$PROGRESS_FILE" 2>/dev/null || echo 0)
-    failed_steps=$(grep -c '^STEP_.*="failed"' "$PROGRESS_FILE" 2>/dev/null || echo 0)
-    pending_steps=$(grep -c '^STEP_.*="pending"' "$PROGRESS_FILE" 2>/dev/null || echo 0)
+    done_steps=$(grep -c '^STEP_.*="done"' "$PROGRESS_FILE" 2>/dev/null | tr -d '[:space:]\r')
+    failed_steps=$(grep -c '^STEP_.*="failed"' "$PROGRESS_FILE" 2>/dev/null | tr -d '[:space:]\r')
+    pending_steps=$(grep -c '^STEP_.*="pending"' "$PROGRESS_FILE" 2>/dev/null | tr -d '[:space:]\r')
+    
+    # Если команда grep не выполнилась (файл не существует), установить 0
+    done_steps=${done_steps:-0}
+    failed_steps=${failed_steps:-0}
+    pending_steps=${pending_steps:-0}
 
     # Если только pending шаги (свежий файл — просто создан) — не спрашиваем
     if [[ "$done_steps" -eq 0 && "$failed_steps" -eq 0 ]]; then
