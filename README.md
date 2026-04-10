@@ -3,10 +3,13 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-5.1+-green.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20WSL-blue)](https://learn.microsoft.com/windows/wsl/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/jLapa/orchestra)
 
 > **Профессиональный оркестратор для развёртывания и управления VPN инфраструктурой с поддержкой флота серверов**
 
 Orchestra — это модульная система управления VPN инфраструктурой, написанная на Bash. Поддерживает развёртывание Xray (VLESS+Reality+XHTTP), Remnawave Panel/Node, Bedolaga Telegram бота, системного hardening, мониторинга, бэкапов и управления флотом серверов через единый интерфейс.
+
+> **🎯 Проект развернут на GitHub и готов к использованию!**
 
 ## 🚀 Возможности
 
@@ -74,7 +77,7 @@ orchestra/
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/yourusername/orchestra.git
+git clone https://github.com/jLapa/orchestra.git
 cd orchestra
 
 # Назначение прав исполнения
@@ -261,7 +264,7 @@ MIT License — смотрите файл [LICENSE](LICENSE).
 
 ## 📞 Поддержка
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/orchestra/issues)
+- **Issues**: [GitHub Issues](https://github.com/jLapa/orchestra/issues)
 - **Документация**: [`orchestra-briefing.md`](orchestra-briefing.md) и [`orchestra-plan.md`](orchestra-plan.md)
 - **Тестовые серверы**: В брифинге указаны тестовые серверы с SSH доступом
 
@@ -270,4 +273,4 @@ MIT License — смотрите файл [LICENSE](LICENSE).
 **Orchestra** — профессиональный инструмент для управления VPN инфраструктурой.  
 Разработано с ❤️ для DevOps инженеров, которым нужен контроль и автоматизация.
 
-*Последнее обновление: 2024-04-10 | Версия: 1.0.0*
+*Последнее обновление: 2026-04-10 | Версия: 1.0.0*
