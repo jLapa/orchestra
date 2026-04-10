@@ -207,6 +207,12 @@ remnawave_install_panel() {
     ask_yn "Начать установку?" "да"
     [[ $? -ne 0 ]] && return 0
 
+    # --- инициализация прогресса ---
+    local server_ip
+    server_ip=$(get_server_ip 2>/dev/null) || server_ip="local"
+    init_progress "remnawave-panel" "${server_ip}"
+    check_resume_prompt
+
     # --- этапы ---
     local -A RW_PARAMS=(
         [PANEL_DOMAIN]="$panel_domain"
@@ -222,7 +228,7 @@ remnawave_install_panel() {
         [SUPERADMIN_PASS]="$superadmin_pass"
     )
 
-    run_step "rw_panel" "docker_install"      "_rw_ensure_docker"
+    run_step "rw_panel" "_rw_ensure_docker"   "Установка Docker"
     run_step "rw_panel" "dirs"                "_rw_panel_create_dirs"
     run_step "rw_panel" "env"                 "_rw_panel_write_env" \
         "$panel_domain" "$sub_domain" "$panel_port" \
@@ -525,7 +531,13 @@ remnawave_install_node() {
     ask_yn "Начать установку?" "да"
     [[ $? -ne 0 ]] && return 0
 
-    run_step "rw_node" "docker_install"  "_rw_ensure_docker"
+    # --- инициализация прогресса ---
+    local server_ip
+    server_ip=$(get_server_ip 2>/dev/null) || server_ip="local"
+    init_progress "remnawave-node" "${server_ip}"
+    check_resume_prompt
+
+    run_step "rw_node" "_rw_ensure_docker"  "Установка Docker"
     run_step "rw_node" "dirs"            "_rw_node_create_dirs"
     run_step "rw_node" "env"             "_rw_node_write_env" \
         "$node_secret" "$panel_addr" "$panel_api_port" "$node_port" "$xray_port"

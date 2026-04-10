@@ -65,6 +65,38 @@ orchestra/
     └── backup.sh           # Резервные копии
 ```
 
+## 🏗️ Установка и настройка
+
+### Настройка окружения
+
+По умолчанию Orchestra ожидает работу из директории `/opt/orchestra`. Если вы запускаете из другой директории, выполните:
+
+```bash
+# Создать символическую ссылку
+sudo ln -s "$(pwd)" /opt/orchestra
+
+# Или изменить переменную ORCHESTRA_DIR в orchestra.sh
+# Измените строку: readonly ORCHESTRA_DIR="/opt/orchestra"
+```
+
+### Инициализация директорий
+
+При первом запуске скрипт автоматически создаст необходимые директории. Если возникают ошибки записи логов, создайте их вручную:
+
+```bash
+sudo mkdir -p /opt/orchestra/{state,fleet/credentials,backups,lib}
+sudo chmod 700 /opt/orchestra/fleet/credentials
+```
+
+### Проверка зависимостей
+
+Убедитесь, что установлены необходимые утилиты:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y curl wget git sshpass jq dnsutils
+```
+
 ## 🚀 Быстрый старт
 
 ### Предварительные требования
@@ -242,6 +274,31 @@ node_02|104.253.175.173|2222|root||remnawave-node|pending|2024-04-10
 4. Мониторьте логи через `journalctl -u xray -f`
 5. Используйте GeoDNS для распределения нагрузки
 
+## 🛠️ Устранение неполадок
+
+### Cloudflare Proxy detection
+
+Если скрипт неправильно определяет состояние Cloudflare Proxy (оранжевое/серое облако), обновите скрипт до версии, исправляющей проверку TTL=300 + IP диапазоны Cloudflare.
+
+### Remnawave Panel установка
+
+При ошибке `validate_port: command not found` или `docker_install: command not found` обновите модуль `remnawave.sh`. Исправления:
+- Добавлена функция `validate_port()` для совместимости
+- Исправлен вызов `_rw_ensure_docker` вместо `docker_install`
+- Добавлены вызовы `init_progress` и `check_resume_prompt`
+
+### Ошибка записи логов
+
+Если возникает ошибка `No such file or directory` для `/opt/orchestra/state/orchestra.log`, создайте директории вручную (см. раздел «Инициализация директорий»).
+
+### Тестирование модулей
+
+Для проверки всех модулей на синтаксические ошибки выполните:
+
+```bash
+./validate.sh
+```
+
 ## 📝 Лицензия
 
 MIT License — смотрите файл [LICENSE](LICENSE).
@@ -273,4 +330,4 @@ MIT License — смотрите файл [LICENSE](LICENSE).
 **Orchestra** — профессиональный инструмент для управления VPN инфраструктурой.  
 Разработано с ❤️ для DevOps инженеров, которым нужен контроль и автоматизация.
 
-*Последнее обновление: 2026-04-10 | Версия: 1.0.0*
+*Последнее обновление: 2026-04-11 | Версия: 1.0.0*
