@@ -213,32 +213,33 @@ remnawave_install_panel() {
     init_progress "remnawave-panel" "${server_ip}"
     check_resume_prompt
 
-    # --- этапы ---
-    local -A RW_PARAMS=(
-        [PANEL_DOMAIN]="$panel_domain"
-        [SUB_DOMAIN]="$sub_domain"
-        [PANEL_PORT]="$panel_port"
-        [ADMIN_USER]="$admin_user"
-        [ADMIN_PASS]="$admin_pass"
-        [DB_PASS]="$db_pass"
-        [JWT_AUTH_SECRET]="$jwt_auth_secret"
-        [JWT_API_SECRET]="$jwt_api_secret"
-        [METRICS_USER]="$metrics_user"
-        [METRICS_PASS]="$metrics_pass"
-        [SUPERADMIN_PASS]="$superadmin_pass"
-    )
+    # --- сохраняем параметры в глобальные переменные для вызова из run_step ---
+    _RW_P_DOMAIN="$panel_domain"
+    _RW_P_SUB="$sub_domain"
+    _RW_P_PORT="$panel_port"
+    _RW_P_DB_PASS="$db_pass"
+    _RW_P_JWT_AUTH="$jwt_auth_secret"
+    _RW_P_JWT_API="$jwt_api_secret"
+    _RW_P_MUSER="$metrics_user"
+    _RW_P_MPASS="$metrics_pass"
+    _RW_P_SADMIN="$superadmin_pass"
+    _RW_P_ADMIN_USER="$admin_user"
+    _RW_P_ADMIN_PASS="$admin_pass"
 
-    run_step "rw_panel" "_rw_ensure_docker"   "Установка Docker"
-    run_step "rw_panel" "dirs"                "_rw_panel_create_dirs"
-    run_step "rw_panel" "env"                 "_rw_panel_write_env" \
-        "$panel_domain" "$sub_domain" "$panel_port" \
-        "$db_pass" "$jwt_auth_secret" "$jwt_api_secret" \
-        "$metrics_user" "$metrics_pass" "$superadmin_pass"
-    run_step "rw_panel" "compose"             "_rw_panel_write_compose" "$panel_port"
-    run_step "rw_panel" "pull"                "_rw_panel_pull"
-    run_step "rw_panel" "start"               "_rw_panel_start"
-    run_step "rw_panel" "wait_healthy"        "_rw_panel_wait_healthy" "$panel_port"
-    run_step "rw_panel" "create_admin"        "_rw_panel_create_admin" "$panel_port" "$admin_user" "$admin_pass"
+    # Обёртки — run_step вызывает функцию без аргументов, параметры берём из глобальных переменных
+    _rw_step_panel_env()     { _rw_panel_write_env     "$_RW_P_DOMAIN" "$_RW_P_SUB" "$_RW_P_PORT" "$_RW_P_DB_PASS" "$_RW_P_JWT_AUTH" "$_RW_P_JWT_API" "$_RW_P_MUSER" "$_RW_P_MPASS" "$_RW_P_SADMIN"; }
+    _rw_step_panel_compose() { _rw_panel_write_compose "$_RW_P_PORT"; }
+    _rw_step_panel_healthy() { _rw_panel_wait_healthy  "$_RW_P_PORT"; }
+    _rw_step_panel_admin()   { _rw_panel_create_admin  "$_RW_P_PORT" "$_RW_P_ADMIN_USER" "$_RW_P_ADMIN_PASS"; }
+
+    run_step "rw_ensure_docker"   "_rw_ensure_docker"       "Установка Docker"
+    run_step "rw_panel_dirs"      "_rw_panel_create_dirs"   "Создание директорий"
+    run_step "rw_panel_env"       "_rw_step_panel_env"      "Запись конфигурации (.env)"
+    run_step "rw_panel_compose"   "_rw_step_panel_compose"  "Docker Compose файл"
+    run_step "rw_panel_pull"      "_rw_panel_pull"          "Загрузка Docker образов"
+    run_step "rw_panel_start"     "_rw_panel_start"         "Запуск контейнеров"
+    run_step "rw_panel_healthy"   "_rw_step_panel_healthy"  "Ожидание готовности панели"
+    run_step "rw_panel_admin"     "_rw_step_panel_admin"    "Создание администратора"
 
     mark_module_done "remnawave-panel" "${server_ip}"
     
@@ -539,15 +540,26 @@ remnawave_install_node() {
     init_progress "remnawave-node" "${server_ip}"
     check_resume_prompt
 
-    run_step "rw_node" "_rw_ensure_docker"  "Установка Docker"
-    run_step "rw_node" "dirs"            "_rw_node_create_dirs"
-    run_step "rw_node" "env"             "_rw_node_write_env" \
-        "$node_secret" "$panel_addr" "$panel_api_port" "$node_port" "$xray_port"
-    run_step "rw_node" "compose"         "_rw_node_write_compose" "$node_port" "$xray_port"
-    run_step "rw_node" "pull"            "_rw_node_pull"
-    run_step "rw_node" "start"           "_rw_node_start"
-    run_step "rw_node" "wait_healthy"    "_rw_node_wait_healthy" "$node_port"
-    run_step "rw_node" "firewall"        "_rw_node_open_firewall" "$node_port" "$xray_port"
+    # --- сохраняем параметры для run_step обёрток ---
+    _RW_N_SECRET="$node_secret"
+    _RW_N_PANEL_ADDR="$panel_addr"
+    _RW_N_PANEL_PORT="$panel_api_port"
+    _RW_N_NODE_PORT="$node_port"
+    _RW_N_XRAY_PORT="$xray_port"
+
+    _rw_step_node_env()      { _rw_node_write_env     "$_RW_N_SECRET" "$_RW_N_PANEL_ADDR" "$_RW_N_PANEL_PORT" "$_RW_N_NODE_PORT" "$_RW_N_XRAY_PORT"; }
+    _rw_step_node_compose()  { _rw_node_write_compose "$_RW_N_NODE_PORT" "$_RW_N_XRAY_PORT"; }
+    _rw_step_node_healthy()  { _rw_node_wait_healthy  "$_RW_N_NODE_PORT"; }
+    _rw_step_node_firewall() { _rw_node_open_firewall "$_RW_N_NODE_PORT" "$_RW_N_XRAY_PORT"; }
+
+    run_step "rw_ensure_docker"  "_rw_ensure_docker"       "Установка Docker"
+    run_step "rw_node_dirs"      "_rw_node_create_dirs"    "Создание директорий ноды"
+    run_step "rw_node_env"       "_rw_step_node_env"       "Запись конфигурации ноды (.env)"
+    run_step "rw_node_compose"   "_rw_step_node_compose"   "Docker Compose файл ноды"
+    run_step "rw_node_pull"      "_rw_node_pull"           "Загрузка образа ноды"
+    run_step "rw_node_start"     "_rw_node_start"          "Запуск ноды"
+    run_step "rw_node_healthy"   "_rw_step_node_healthy"   "Ожидание готовности ноды"
+    run_step "rw_node_firewall"  "_rw_step_node_firewall"  "Открытие портов UFW"
 
     mark_module_done "remnawave-node" "${server_ip}"
     

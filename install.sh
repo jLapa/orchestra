@@ -34,16 +34,26 @@ main() {
     echo ""
     
     # Проверка прав
-    if [[ "$(id -u)" -eq 0 ]]; then
-        warn "Скрипт запущен от root. Установка в системные директории."
-        INSTALL_DIR="/opt/orchestra"
+    if [[ -z "${INSTALL_DIR:-}" ]]; then
+        if [[ "$(id -u)" -eq 0 ]]; then
+            warn "Скрипт запущен от root. Установка в системные директории."
+            INSTALL_DIR="/opt/orchestra"
+        else
+            info "Скрипт запущен от обычного пользователя."
+            INSTALL_DIR="${HOME}/.orchestra"
+            warn "Рекомендуется запуск от root/sudo для полной функциональности."
+            echo ""
+            ask_yn "Продолжить установку в ${INSTALL_DIR}?" "да"
+            [[ $? -ne 0 ]] && exit 0
+        fi
     else
-        info "Скрипт запущен от обычного пользователя."
-        INSTALL_DIR="${HOME}/.orchestra"
-        warn "Рекомендуется запуск от root/sudo для полной функциональности."
-        echo ""
-        ask_yn "Продолжить установку в ${INSTALL_DIR}?" "да"
-        [[ $? -ne 0 ]] && exit 0
+        info "Установка в указанную директорию: ${INSTALL_DIR}"
+        if [[ "$(id -u)" -eq 0 ]]; then
+            warn "Скрипт запущен от root."
+        else
+            warn "Скрипт запущен от обычного пользователя."
+            warn "Рекомендуется запуск от root/sudo для полной функциональности."
+        fi
     fi
     
     # Проверка зависимостей

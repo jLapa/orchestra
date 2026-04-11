@@ -295,9 +295,14 @@ bedolaga_install() {
 
     # =================== ЭТАПЫ ===================
 
-    # Сохраняем параметры во временный файл для передачи между step-ами
-    local params_file
-    params_file=$(mktemp)
+    # Инициализация прогресса
+    local server_ip
+    server_ip=$(get_server_ip 2>/dev/null) || server_ip="local"
+    init_progress "bedolaga" "${server_ip}"
+    check_resume_prompt
+
+    # Сохраняем параметры во временный файл — глобальная переменная для run_step обёртки
+    _BDL_PARAMS_FILE=$(mktemp)
     {
         echo "BOT_TOKEN=${bot_token}"
         echo "ADMIN_ID=${admin_id}"
@@ -314,17 +319,19 @@ bedolaga_install() {
         for key in "${!payment_keys[@]}"; do
             echo "${key}=${payment_keys[$key]}"
         done
-    } > "$params_file"
-    chmod 600 "$params_file"
+    } > "$_BDL_PARAMS_FILE"
+    chmod 600 "$_BDL_PARAMS_FILE"
 
-    run_step "bedolaga" "dirs"         "_bdl_create_dirs"
-    run_step "bedolaga" "python"       "_bdl_ensure_python"
-    run_step "bedolaga" "install_bot"  "_bdl_install_bot"
-    run_step "bedolaga" "env"          "_bdl_write_env" "$params_file"
-    run_step "bedolaga" "service"      "_bdl_write_service"
-    run_step "bedolaga" "start"        "_bdl_start_service"
+    _bdl_step_write_env() { _bdl_write_env "$_BDL_PARAMS_FILE"; }
 
-    rm -f "$params_file"
+    run_step "bdl_dirs"         "_bdl_create_dirs"      "Создание директорий"
+    run_step "bdl_python"       "_bdl_ensure_python"    "Проверка Python 3.13+"
+    run_step "bdl_install_bot"  "_bdl_install_bot"      "Установка Bedolaga Bot"
+    run_step "bdl_env"          "_bdl_step_write_env"   "Запись конфигурации (.env)"
+    run_step "bdl_service"      "_bdl_write_service"    "Systemd сервис"
+    run_step "bdl_start"        "_bdl_start_service"    "Запуск бота"
+
+    rm -f "$_BDL_PARAMS_FILE"
 
     info "Bedolaga Bot установлен и запущен"
     echo ""
