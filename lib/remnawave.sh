@@ -231,6 +231,8 @@ remnawave_install_panel() {
     _rw_step_panel_compose() { _rw_panel_write_compose "$_RW_P_PORT"; }
     _rw_step_panel_healthy() { _rw_panel_wait_healthy  "$_RW_P_PORT"; }
     _rw_step_panel_admin()   { _rw_panel_create_admin  "$_RW_P_PORT" "$_RW_P_ADMIN_USER" "$_RW_P_ADMIN_PASS"; }
+    _rw_step_panel_nginx()   { _rw_panel_setup_nginx   "$_RW_P_DOMAIN" "$_RW_P_SUB"; }
+    _rw_step_panel_ssl()     { _rw_panel_setup_ssl     "$_RW_P_DOMAIN" "$_RW_P_SUB"; }
 
     run_step "rw_ensure_docker"   "_rw_ensure_docker"       "Установка Docker"
     run_step "rw_panel_dirs"      "_rw_panel_create_dirs"   "Создание директорий"
@@ -238,6 +240,8 @@ remnawave_install_panel() {
     run_step "rw_panel_compose"   "_rw_step_panel_compose"  "Docker Compose файл"
     run_step "rw_panel_pull"      "_rw_panel_pull"          "Загрузка Docker образов"
     run_step "rw_panel_start"     "_rw_panel_start"         "Запуск контейнеров"
+    run_step "rw_panel_nginx"     "_rw_step_panel_nginx"    "Настройка nginx (reverse proxy)"
+    run_step "rw_panel_ssl"       "_rw_step_panel_ssl"      "SSL сертификат (certbot)"
     run_step "rw_panel_healthy"   "_rw_step_panel_healthy"  "Ожидание готовности панели"
     run_step "rw_panel_admin"     "_rw_step_panel_admin"    "Создание администратора"
 
@@ -484,6 +488,103 @@ _rw_panel_create_admin() {
     # Не критично — пользователь может создать через SUPERADMIN_PASSWORD
     warn "Не удалось создать admin через API — используй SUPERADMIN_PASSWORD из .env"
     return 0
+}
+
+# =============================================================================
+# NGINX + SSL ДЛЯ ПАНЕЛИ
+# =============================================================================
+
+_rw_panel_setup_nginx() {
+    local panel_domain="$1"
+    local sub_domain="$2"
+
+    # Устанавливаем nginx если нет
+    if ! command -v nginx &>/dev/null; then
+        step_msg "Устанавливаем nginx..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx \
+            -o Dpkg::Options::="--force-confdef" \
+            -o Dpkg::Options::="--force-confold" 2>/dev/null
+        systemctl enable nginx
+        systemctl start nginx
+    fi
+
+    local conf_file="/etc/nginx/sites-available/remnawave"
+
+    cat > "$conf_file" << EOF
+server {
+    listen 80;
+    server_name ${panel_domain};
+
+    location / {
+        proxy_pass http://127.0.0.1:${RW_PANEL_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 90s;
+    }
+}
+
+server {
+    listen 80;
+    server_name ${sub_domain};
+
+    location / {
+        proxy_pass http://127.0.0.1:${RW_PANEL_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 90s;
+    }
+}
+EOF
+
+    ln -sf "$conf_file" /etc/nginx/sites-enabled/remnawave
+    # Убираем дефолтный сайт если мешает
+    rm -f /etc/nginx/sites-enabled/default
+
+    nginx -t 2>&1 && systemctl reload nginx
+    info "nginx vhost настроен: ${panel_domain}, ${sub_domain}"
+}
+
+_rw_panel_setup_ssl() {
+    local panel_domain="$1"
+    local sub_domain="$2"
+
+    # Устанавливаем certbot если нет
+    if ! command -v certbot &>/dev/null; then
+        step_msg "Устанавливаем certbot..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            certbot python3-certbot-nginx \
+            -o Dpkg::Options::="--force-confdef" \
+            -o Dpkg::Options::="--force-confold" 2>/dev/null
+    fi
+
+    # Определяем домены для certbot: panel — всегда, sub — только если не за CF Proxy
+    local certbot_domains="-d ${panel_domain}"
+
+    if declare -f check_cf_proxy &>/dev/null && check_cf_proxy "$sub_domain" 2>/dev/null; then
+        warn "sub-домен ${sub_domain} за Cloudflare Proxy — SSL для него не выпускаем (HTTP-01 не пройдёт)"
+        warn "Для sub работает HTTPS через CF — дополнительный сертификат не нужен"
+    else
+        certbot_domains="${certbot_domains} -d ${sub_domain}"
+    fi
+
+    step_msg "Выпускаем SSL сертификат (certbot --nginx)..."
+    certbot --nginx ${certbot_domains} \
+        --non-interactive \
+        --agree-tos \
+        --register-unsafely-without-email \
+        --redirect \
+        2>&1 | tail -10
+
+    # Настройка автообновления
+    if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+        (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --nginx") | crontab -
+    fi
+
+    info "SSL настроен. Автообновление: cron 03:00 ежедневно"
 }
 
 # =============================================================================
