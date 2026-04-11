@@ -84,8 +84,8 @@ sys_full_install() {
     run_step "update_packages"    _sys_update_packages    "Обновление пакетов"
     run_step "install_deps"       _sys_install_deps       "Установка зависимостей"
     run_step "apply_sysctl"       _sys_apply_sysctl       "Применение sysctl (BBR + оптимизация)"
-    run_step "setup_ssh"          _sys_setup_ssh          "SSH hardening"
     run_step "setup_ufw"          _sys_setup_ufw          "Файрвол UFW"
+    run_step "setup_ssh"          _sys_setup_ssh          "SSH hardening"
     run_step "setup_fail2ban"     _sys_setup_fail2ban     "fail2ban (защита от брутфорса)"
     run_step "setup_ntp"          _sys_setup_ntp          "NTP (синхронизация времени)"
     run_step "setup_logrotate"    _sys_setup_logrotate    "Logrotate"
@@ -470,6 +470,9 @@ _sys_setup_ufw() {
         ufw allow from "${SYS_ADMIN_IP}" comment "Admin whitelist"
         info "UFW whitelist добавлен для ${SYS_ADMIN_IP}"
     fi
+
+    # Отключаем логирование UFW (спамит в консоль)
+    ufw logging off
 
     # Включаем UFW без интерактивного запроса
     ufw --force enable
