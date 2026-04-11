@@ -292,6 +292,7 @@ APP_PORT=${panel_port}
 METRICS_PORT=${RW_PANEL_METRICS_PORT}
 PUBLIC_DOMAIN=https://${panel_domain}
 SUB_PUBLIC_DOMAIN=https://${sub_domain}
+FRONT_END_DOMAIN=https://${panel_domain}
 
 # === База данных ===
 DATABASE_URL=postgresql://remnawave:${db_pass}@remnawave-db:5432/remnawave
