@@ -32,6 +32,8 @@ ORCH_DIR="/opt/orchestra"
 
 if [[ -d "$ORCH_DIR/.git" ]]; then
     warn "Orchestra уже установлена в ${ORCH_DIR} — обновляю..."
+    git -C "$ORCH_DIR" config core.autocrlf false
+    git -C "$ORCH_DIR" reset --hard HEAD 2>&1 | tail -1
     git -C "$ORCH_DIR" pull --ff-only 2>&1 | tail -3
 else
     if [[ -d "$ORCH_DIR" ]]; then
