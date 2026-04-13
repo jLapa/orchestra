@@ -61,6 +61,9 @@ source "$ORCH_DIR/lib/remnawave.sh"
 
 ok "Функции загружены"
 
+# Создаём нужные директории (init_directories() иначе вызывается только через self_install)
+init_directories
+
 # Определяем IP один раз
 SERVER_IP=$(get_server_ip 2>/dev/null) || die "Не удалось определить IP сервера"
 ok "IP сервера: ${SERVER_IP}"
