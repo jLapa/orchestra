@@ -21,6 +21,7 @@ SYS_ADMIN_IP=""
 SYS_DISABLE_IPV6=""
 SYS_NTP_SERVER="pool.ntp.org"
 SYS_TIMEZONE="Europe/Moscow"
+SYS_PERMIT_ROOT="prohibit-password"  # yes | prohibit-password | no
 SYS_INSTALL_BBR="yes"
 
 # =============================================================================
@@ -349,7 +350,7 @@ _sys_setup_ssh() {
 Port ${SYS_SSH_PORT}
 
 # Аутентификация
-PermitRootLogin prohibit-password
+PermitRootLogin ${SYS_PERMIT_ROOT}
 PasswordAuthentication yes
 PubkeyAuthentication yes
 AuthorizedKeysFile .ssh/authorized_keys

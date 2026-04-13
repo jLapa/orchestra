@@ -516,7 +516,7 @@ server {
     server_name ${panel_domain};
 
     location / {
-        proxy_pass http://127.0.0.1:${RW_PANEL_PORT};
+        proxy_pass http://127.0.0.1:${panel_port};
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -530,7 +530,7 @@ server {
     server_name ${sub_domain};
 
     location / {
-        proxy_pass http://127.0.0.1:${RW_PANEL_PORT};
+        proxy_pass http://127.0.0.1:${panel_port};
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
